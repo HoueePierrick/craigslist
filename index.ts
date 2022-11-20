@@ -1,19 +1,25 @@
 // Removed "type": "module" from JSON to allow require
 import puppeteer from "puppeteer";
 import cheerio from "cheerio";
+import monogoose from "mongoose";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import Listing from "./model/Listing.js";
+import { oneResult } from "./model/Listing.js";
 
 // const puppeteer = require("puppeteer");
 // const cheerio = require("cheerio");
 
-interface oneResult {
-  title: string;
-  datePosted: Date;
-  neighborhood: string;
-  url: string;
-  jobdescription: string;
-  compensation: string;
-}
+dotenv.config();
+
 let scrapingresults: oneResult[] = [];
+
+// Function to connect to Mongo DB
+async function connectToMongoDB() {
+  const MongoDBURI = process.env.MONGODB_URI ? process.env.MONGODB_URI : "";
+  await mongoose.connect(MongoDBURI);
+  console.log("connected to mongodb");
+}
 
 async function scrapeListings(page: puppeteer.Page) {
   // headless: false => the browser will be visible (could be unactivated when ok)
@@ -100,7 +106,9 @@ async function scrapeJobDescriptions(
     // console.log(listings[i].jobDescription);
     const compensation = $(".attrgroup > span:first-child > b").text();
     listings[i].compensation = compensation;
-    console.log(listings[i]);
+    // console.log(listings[i].compensation);
+    const listingModel = new Listing(listings[i]);
+    await listingModel.save();
     await sleep(1000);
   }
 }
@@ -112,6 +120,8 @@ async function sleep(milliseconds: number) {
 }
 
 async function main() {
+  // Function to connect to Mongo DB
+  connectToMongoDB();
   // { headless: false }
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
